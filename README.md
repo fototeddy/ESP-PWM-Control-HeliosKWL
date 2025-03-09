@@ -9,3 +9,5 @@ Für ein Lüfterpaar (Wohnraum) gibt es den Abluft Modus. In diesem Modus reagie
 Außerdem gibt es einen Schalter für den Pendelmodus. Im Pendelmodus ist die Wäremrückgewinnung der Lüfter aktiv und sie Pendel im Takt von 45 Sekunden.
 
 Ohne Pendelmodus ist ein Lüfter dauerhaft im Zuluft modus und einer Dauerhaft im Abluftmodus.
+
+Die Configurationsdatein für Home Assistant sind nur notwendig, wenn Home Assistant die Betriebsstunden der Lüfter zählen soll. Home Assistant bietet dann die Möglichkeit das Wechselinterval zwischen 3, 6, 9 und 12 Monaten zu wählen.
