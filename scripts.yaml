@@ -1,0 +1,35 @@
+reset_wartung_wohnung:
+  alias: Wartungswarnung Wohnung zurücksetzen
+  sequence:
+  - data:
+      entity_id: input_number.gespeicherte_betriebsmonate_wohnung
+      value: '{{ states(''sensor.betriebsmonate_wohnung'') | float }}'
+    action: input_number.set_value
+  - data:
+      entity_id: input_datetime.letzter_reset_wohnung
+      datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+    action: input_datetime.set_datetime
+  - data:
+      title: Wartungswarnung zurückgesetzt
+      message: 'Die Wartungswarnung für den Lüfter in der Wohnung wurde zurückgesetzt.
+        Aktuelle Betriebszeit: {{ states(''sensor.betriebsmonate_wohnung'') }} Monate.'
+      notification_id: maintenance_reset_wohnung
+    action: persistent_notification.create
+reset_wartung_trockenraum:
+  alias: Wartungswarnung Trockenraum zurücksetzen
+  sequence:
+  - data:
+      entity_id: input_number.gespeicherte_betriebsmonate_trockenraum
+      value: '{{ states(''sensor.betriebsmonate_trockenraum'') | float }}'
+    action: input_number.set_value
+  - data:
+      entity_id: input_datetime.letzter_reset_trockenraum
+      datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+    action: input_datetime.set_datetime
+  - data:
+      title: Wartungswarnung zurückgesetzt
+      message: 'Die Wartungswarnung für den Lüfter im Trockenraum wurde zurückgesetzt.
+        Aktuelle Betriebszeit: {{ states(''sensor.betriebsmonate_trockenraum'') }}
+        Monate.'
+      notification_id: maintenance_reset_trockenraum
+    action: persistent_notification.create
