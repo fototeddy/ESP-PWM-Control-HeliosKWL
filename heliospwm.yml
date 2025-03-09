@@ -1,0 +1,416 @@
+esphome:
+  name: heliospwm
+  friendly_name: helios_pwm_control
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "SSID"
+  password: "WLAN Key"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "heliospwm"
+    password: "12345678"
+    
+captive_portal:
+
+web_server:
+  local: true
+  port: 80
+  version: 3
+
+ota:
+  - platform: esphome
+logger:
+  level: INFO  # Auf INFO geändert für den Produktivbetrieb, DEBUG nur für Fehlersuche
+  
+api:
+
+# Konstanten für häufig verwendete Werte
+substitutions:
+  pwm_frequency: "3200" #Frequenz in Herz
+  pendel_interval: "45"  # Intervall in Sekunden für Dauer im Pendelmodus
+  pendel_delay: "900" #Intervall in Millisekunden für Pause bei Richtungswechsel
+
+# Output configurations for PWM signals
+output:
+  - platform: ledc
+    pin: GPIO6 # Lüfter 1 - Wohnung
+    frequency: ${pwm_frequency} Hz
+    id: fan_pwm_1
+    
+  - platform: ledc
+    pin: GPIO7 # Lüfter 2 - Wohnung
+    frequency: ${pwm_frequency} Hz
+    id: fan_pwm_2
+    
+  - platform: ledc
+    pin: GPIO20 # Lüfter 3 - Trockenraum
+    frequency: ${pwm_frequency} Hz
+    id: fan_pwm_3
+    
+  - platform: ledc
+    pin: GPIO21 # Lüfter 4 - Trockenraum
+    frequency: ${pwm_frequency} Hz
+    id: fan_pwm_4
+
+# Input controls for the GUI
+number:
+  - platform: template
+    name: "Fan Speed Wohnung [%]"
+    id: fan_speed_wohnung
+    min_value: 0
+    max_value: 100
+    step: 25  
+    initial_value: 0  
+    optimistic: true
+    icon: "mdi:fan"  
+    set_action:
+      - lambda: |-
+          ESP_LOGD("fan_speed_wohnung", "Fan Speed Wohnung set to: %.2f", x);
+          
+  - platform: template
+    name: "Fan Speed Trockenraum [%]"
+    id: fan_speed_trocken
+    min_value: 0
+    max_value: 100
+    step: 25  
+    initial_value: 0  
+    optimistic: true
+    icon: "mdi:fan"  
+    set_action:
+      - lambda: |-
+          ESP_LOGD("fan_speed_trocken", "Fan Speed Trockenraum set to: %.2f", x);
+          
+  - platform: template
+    name: "Obergrenze [%]"
+    id: night_reduction
+    min_value: 0
+    max_value: 100
+    step: 25  
+    initial_value: 0  
+    optimistic: true
+    icon: "mdi:percent"  
+    set_action:
+      - lambda: |-
+          ESP_LOGD("night_reduction", "Obergrenze set to: %.2f", x);
+
+switch:
+  - platform: template
+    name: "Pendel Modus"
+    id: pendel_mode
+    optimistic: true
+    icon: "mdi:swap-horizontal"  
+    restore_mode: RESTORE_DEFAULT_ON
+    turn_on_action:
+      - lambda: |-
+          ESP_LOGD("pendel_mode", "Pendel Mode turned ON");
+    turn_off_action:
+      - lambda: |-
+          ESP_LOGD("pendel_mode", "Pendel Mode turned OFF");
+          
+  - platform: template
+    name: "Abluft Modus"
+    id: abluft_mode
+    optimistic: true
+    icon: "mdi:air-filter"  
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - lambda: |-
+          ESP_LOGD("abluft_mode", "Abluft Mode turned ON");
+    turn_off_action:
+      - lambda: |-
+          ESP_LOGD("abluft_mode", "Abluft Mode turned OFF");
+
+# Sensoren für aktuelle Lüftergeschwindigkeiten
+sensor:
+  - platform: template
+    name: "Lüfter 1 Geschwindigkeit"
+    id: fan1_speed_sensor
+    unit_of_measurement: "%"
+    icon: "mdi:gauge"
+    accuracy_decimals: 1
+    update_interval: 2s
+    
+  - platform: template
+    name: "Lüfter 2 Geschwindigkeit"
+    id: fan2_speed_sensor
+    unit_of_measurement: "%"
+    icon: "mdi:gauge"
+    accuracy_decimals: 1
+    update_interval: 2s
+    
+  - platform: template
+    name: "Lüfter 3 Geschwindigkeit"
+    id: fan3_speed_sensor
+    unit_of_measurement: "%"
+    icon: "mdi:gauge"
+    accuracy_decimals: 1
+    update_interval: 2s
+    
+  - platform: template
+    name: "Lüfter 4 Geschwindigkeit"
+    id: fan4_speed_sensor
+    unit_of_measurement: "%"
+    icon: "mdi:gauge"
+    accuracy_decimals: 1
+    update_interval: 2s
+
+#  Textsensoren für Lüftermodus
+text_sensor:
+  - platform: template
+    name: "Lüfter 1 Modus"
+    id: fan1_mode_sensor
+    icon: "mdi:fan-direction-up"
+    update_interval: 2s
+  
+  - platform: template
+    name: "Lüfter 2 Modus"
+    id: fan2_mode_sensor
+    icon: "mdi:fan-direction-down"
+    update_interval: 2s
+  
+  - platform: template
+    name: "Lüfter 3 Modus"
+    id: fan3_mode_sensor
+    icon: "mdi:fan-direction-up"
+    update_interval: 2s
+  
+  - platform: template
+    name: "Lüfter 4 Modus"
+    id: fan4_mode_sensor
+    icon: "mdi:fan-direction-down"
+    update_interval: 2s
+
+# Globals für persistente Statusvariablen
+globals:
+  - id: reverse_state
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: last_swap_time
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  # Letzte Lüftergeschwindigkeiten speichern
+  - id: last_fan1_speed
+    type: float
+    restore_value: false
+    initial_value: '50.0'
+  - id: last_fan2_speed
+    type: float
+    restore_value: false
+    initial_value: '50.0'
+  - id: last_fan3_speed
+    type: float
+    restore_value: false
+    initial_value: '50.0'
+  - id: last_fan4_speed
+    type: float
+    restore_value: false
+    initial_value: '50.0'
+  # Hilfsvariablen für den Status des Richtungswechsels einzelner Lüfter
+  - id: fan1_direction_change_time
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: fan2_direction_change_time
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: fan3_direction_change_time
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: fan4_direction_change_time
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
+# Fan speed automation
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          float speed_wohnung = id(fan_speed_wohnung).state;
+          float speed_trocken = id(fan_speed_trocken).state;
+          float reduction = id(night_reduction).state;
+          bool pendel = id(pendel_mode).state;
+          bool abluft = id(abluft_mode).state;
+          bool &reverse = id(reverse_state);
+          uint32_t now = millis();
+          uint32_t &last_swap = id(last_swap_time);
+
+          // Pendelmodus-Logik 
+          if (pendel) {
+            uint32_t now = millis();
+            if (now - last_swap >= ${pendel_interval}000) {
+              reverse = !reverse;
+              last_swap = now;
+              ESP_LOGD("pendel_mode", "Pendel Mode switched, new reverse state: %s", reverse ? "ON" : "OFF");
+            }
+          }
+          
+          // Effektive Geschwindigkeit mit Obergrenze
+          float effective_speed_wohnung = (reduction > 0) ? std::min(speed_wohnung, reduction) : speed_wohnung;
+          
+          // Verbesserte Lüftergeschwindigkeitsberechnung mit besserer Lesbarkeit
+          float fan1_speed, fan2_speed, fan3_speed, fan4_speed;
+          
+          //Begrenzung auf min 4 und maximal 96% std::max(4.9, std::min(96, ....))
+          // Wohnraumlüfter
+          if (abluft) {
+            // beide Lüfter blasen Luft ein wenn andere Geräte im Haus Abluft ziehen
+            fan1_speed = std::max(4.0, std::min(96.0, 50 + 0.5 * effective_speed_wohnung));
+            fan2_speed = std::max(4.0, std::min(96.0, 50 + 0.5 * effective_speed_wohnung));
+          } else {
+            // Normaler Ab- und Zuluftmodus, ein Lüfter gibt Zuluft einer Abluft
+            fan1_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? -1 : 1) * effective_speed_wohnung * 0.5));
+            fan2_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? 1 : -1) * effective_speed_wohnung * 0.5));
+          }
+          
+          // Trockenraumlüfter, ein Lüfter gibt Zuluft einer Abluft
+          fan3_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? -1 : 1) * speed_trocken * 0.5));
+          fan4_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? 1 : -1) * speed_trocken * 0.5));
+          
+          // Prüfen, ob individuelle Richtungswechsel für jeden Lüfter stattfinden
+          // Für Lüfter 1
+          if ((id(last_fan1_speed) < 50.0f && fan1_speed > 50.0f) || 
+              (id(last_fan1_speed) > 50.0f && fan1_speed < 50.0f)) {
+              id(fan1_direction_change_time) = now;
+              ESP_LOGD("fan_control", "Fan 1 direction change detected - setting to 50% for ${pendel_delay}");
+          }
+          
+          // Für Lüfter 2
+          if ((id(last_fan2_speed) < 50.0f && fan2_speed > 50.0f) || 
+              (id(last_fan2_speed) > 50.0f && fan2_speed < 50.0f)) {
+              id(fan2_direction_change_time) = now;
+              ESP_LOGD("fan_control", "Fan 2 direction change detected - setting to 50% for ${pendel_delay}");
+          }
+          
+          // Für Lüfter 3
+          if ((id(last_fan3_speed) < 50.0f && fan3_speed > 50.0f) || 
+              (id(last_fan3_speed) > 50.0f && fan3_speed < 50.0f)) {
+              id(fan3_direction_change_time) = now;
+              ESP_LOGD("fan_control", "Fan 3 direction change detected - setting to 50% for ${pendel_delay}");
+          }
+          
+          // Für Lüfter 4
+          if ((id(last_fan4_speed) < 50.0f && fan4_speed > 50.0f) || 
+              (id(last_fan4_speed) > 50.0f && fan4_speed < 50.0f)) {
+              id(fan4_direction_change_time) = now;
+              ESP_LOGD("fan_control", "Fan 4 direction change detected - setting to 50% for ${pendel_delay}");
+          }
+          
+          // Prüfen, ob individuelle Lüfter sich noch in einer Pause nach Richtungswechsel befinden
+          bool fan1_in_transition = (now - id(fan1_direction_change_time) < ${pendel_delay});
+          bool fan2_in_transition = (now - id(fan2_direction_change_time) < ${pendel_delay});
+          bool fan3_in_transition = (now - id(fan3_direction_change_time) < ${pendel_delay});
+          bool fan4_in_transition = (now - id(fan4_direction_change_time) < ${pendel_delay});
+          
+          // Setzen der individuellen Lüftergeschwindigkeiten basierend auf Übergangsphase
+          // Lüfter 1
+          if (fan1_in_transition) {
+              id(fan_pwm_1).set_level(0.50);
+          } else {
+              id(fan_pwm_1).set_level(fan1_speed / 100.0);
+          }
+          
+          // Lüfter 2
+          if (fan2_in_transition) {
+              id(fan_pwm_2).set_level(0.50);
+          } else {
+              id(fan_pwm_2).set_level(fan2_speed / 100.0);
+          }
+          
+          // Lüfter 3
+          if (fan3_in_transition) {
+              id(fan_pwm_3).set_level(0.50);
+          } else {
+              id(fan_pwm_3).set_level(fan3_speed / 100.0);
+          }
+          
+          // Lüfter 4
+          if (fan4_in_transition) {
+              id(fan_pwm_4).set_level(0.50);
+          } else {
+              id(fan_pwm_4).set_level(fan4_speed / 100.0);
+          }
+          
+          // Immer die letzten Geschwindigkeiten speichern
+          id(last_fan1_speed) = fan1_speed;
+          id(last_fan2_speed) = fan2_speed;
+          id(last_fan3_speed) = fan3_speed;
+          id(last_fan4_speed) = fan4_speed;
+          
+          // Angepasste Geschwindigkeiten für die Sensoren melden
+          float display_fan1_speed = fan1_in_transition ? 50.0f : fan1_speed;
+          float display_fan2_speed = fan2_in_transition ? 50.0f : fan2_speed;
+          float display_fan3_speed = fan3_in_transition ? 50.0f : fan3_speed;
+          float display_fan4_speed = fan4_in_transition ? 50.0f : fan4_speed;
+          
+          // Sensorwerte aktualisieren
+          id(fan1_speed_sensor).publish_state(display_fan1_speed);
+          id(fan2_speed_sensor).publish_state(display_fan2_speed);
+          id(fan3_speed_sensor).publish_state(display_fan3_speed);
+          id(fan4_speed_sensor).publish_state(display_fan4_speed);
+
+          std::string fan1_mode, fan1_icon, fan2_mode, fan2_icon, fan3_mode, fan3_icon, fan4_mode, fan4_icon;
+
+          // Modi-Bestimmung basierend auf den angezeigten Geschwindigkeiten
+          if (display_fan1_speed < 50.0f) {
+              fan1_mode = "Abluft";
+              fan1_icon = "mdi:fan-direction-up";
+          } else if (display_fan1_speed > 50.0f) {
+              fan1_mode = "Zuluft";
+              fan1_icon = "mdi:fan-direction-down";
+          } else {
+              fan1_mode = fan1_in_transition ? "Richtungswechsel" : "Aus";
+              fan1_icon = "mdi:fan";
+          }
+          if (display_fan2_speed < 50.0f) {
+              fan2_mode = "Abluft";
+              fan2_icon = "mdi:fan-direction-up";
+          } else if (display_fan2_speed > 50.0f) {
+              fan2_mode = "Zuluft";
+              fan2_icon = "mdi:fan-direction-down";
+          } else {
+              fan2_mode = fan2_in_transition ? "Richtungswechsel" : "Aus";
+              fan2_icon = "mdi:fan";
+          }
+          if (display_fan3_speed < 50.0f) {
+              fan3_mode = "Abluft";
+              fan3_icon = "mdi:fan-direction-up";
+          } else if (display_fan3_speed > 50.0f) {
+              fan3_mode = "Zuluft";
+              fan3_icon = "mdi:fan-direction-down";
+          } else {
+              fan3_mode = fan3_in_transition ? "Richtungswechsel" : "Aus";
+              fan3_icon = "mdi:fan";
+          }
+          if (display_fan4_speed < 50.0f) {
+              fan4_mode = "Abluft";
+              fan4_icon = "mdi:fan-direction-up";
+          } else if (display_fan4_speed > 50.0f) {
+              fan4_mode = "Zuluft";
+              fan4_icon = "mdi:fan-direction-down";
+          } else {
+              fan4_mode = fan4_in_transition ? "Richtungswechsel" : "Aus";
+              fan4_icon = "mdi:fan";
+          }
+          
+          // Lüftermodi setzen
+          id(fan1_mode_sensor).publish_state(fan1_mode);
+          id(fan2_mode_sensor).publish_state(fan2_mode);
+          id(fan3_mode_sensor).publish_state(fan3_mode);
+          id(fan4_mode_sensor).publish_state(fan4_mode);
+
+          // Dynamisches Icon für jeden Lüfter basierend auf dem Modus
+          id(fan1_mode_sensor).set_icon(fan1_icon.c_str());
+          id(fan2_mode_sensor).set_icon(fan2_icon.c_str());
+          id(fan3_mode_sensor).set_icon(fan3_icon.c_str());
+          id(fan4_mode_sensor).set_icon(fan4_icon.c_str());
