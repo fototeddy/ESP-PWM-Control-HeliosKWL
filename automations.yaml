@@ -1,0 +1,38 @@
+- id: wartung_wohnung_faellig
+  alias: Benachrichtigung Wartung Wohnung
+  triggers:
+  - entity_id:
+    - binary_sensor.wartung_wohnung_fallig
+    from: 'off'
+    to: 'on'
+    trigger: state
+  actions:
+  - data:
+      title: Wartung der Lüftungsanlage fällig
+      message: 'Die Lüftungsanlage in der Wohnung hat {{ states(''sensor.betriebsmonate_wohnung'')
+        }}  Betriebsmonate erreicht und sollte gewartet werden.
+
+        Betriebsstunden: {{ states(''sensor.betriebsstunden_wohnung_lesbar'') }}
+
+        '
+      notification_id: maintenance_wohnung
+    action: persistent_notification.create
+- id: wartung_Trockenraum_faellig
+  alias: Benachrichtigung Wartung Trockenraum
+  triggers:
+  - entity_id:
+    - binary_sensor.wartung_trockenraum_fallig
+    from: 'off'
+    to: 'on'
+    trigger: state
+  actions:
+  - data:
+      title: Wartung der Lüftungsanlage fällig
+      message: 'Die Lüftungsanlage im Trockenraum hat {{ states(''sensor.betriebsmonate_trockenraum'')
+        }}  Betriebsmonate erreicht und sollte gewartet werden.
+
+        Betriebsstunden: {{ states(''sensor.betriebsstunden_trockenraum_lesbar'') }}
+
+        '
+      notification_id: maintenance_trockenraum
+    action: persistent_notification.create
