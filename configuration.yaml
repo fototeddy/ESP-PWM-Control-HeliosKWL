@@ -1,0 +1,38 @@
+sensor:
+    # Betriebsstundenzähler für Trockenraum
+  - platform: integration
+    source: sensor.heliospwm_trockenraum_aktiv
+    name: Trockenraum Laufzeit
+    unit_time: h
+    round: 2
+    method: left
+  - platform: integration
+    source: sensor.heliospwm_wohnung_aktiv
+    name: Wohnraum_Laufzeit
+    unit_time: h
+    round: 2
+    method: left
+
+input_number:
+  warnschwelle_luefter_monate:
+    name: Warnschwelle Lüfter (Monate)
+    min: 1
+    max: 12
+    step: 3
+    icon: mdi:calendar-alert
+    initial: 3
+    mode: slider
+  gespeicherte_betriebsmonate_wohnung:
+    name: Gespeicherte Betriebsmonate Wohnung
+    min: 0
+    max: 9999
+    step: 0.01
+    unit_of_measurement: "Monate"
+    mode: box
+  gespeicherte_betriebsmonate_trockenraum:
+    name: Gespeicherte Betriebsmonate Trockenraum
+    min: 0
+    max: 9999
+    step: 0.01
+    unit_of_measurement: "Monate"
+    mode: box
