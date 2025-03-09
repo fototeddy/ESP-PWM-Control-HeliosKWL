@@ -1,0 +1,76 @@
+  - sensor:
+      # Betriebsstunden Wohnung in lesbarem Format
+      - name: "Betriebsstunden Wohnung lesbar"
+        state: >
+          {% set hours = states('sensor.wohnraum_laufzeit') | float %}
+          {% set days = (hours / 24) | int %}
+          {% set remaining_hours = (hours % 24) | int %}
+          {% set minutes = ((hours % 1) * 60) | int %}
+          {% if days > 0 %}
+            {{ days }} Tage, {{ remaining_hours }} Stunden, {{ minutes }} Minuten
+          {% else %}
+            {{ remaining_hours }} Stunden, {{ minutes }} Minuten
+          {% endif %}
+        icon: mdi:clock-time-four
+        availability: "{{ states('sensor.wohnraum_laufzeit') != 'unknown' and states('sensor.betriebsstunden_wohnung') != 'unavailable' }}"
+      # Betriebsstunden Trockenraum in lesbarem Format
+      - name: "Betriebsstunden Trockenraum lesbar"
+        state: >
+          {% set hours = states('sensor.trockenraum_laufzeit') | float %}
+          {% set days = (hours / 24) | int %}
+          {% set remaining_hours = (hours % 24) | int %}
+          {% set minutes = ((hours % 1) * 60) | int %}
+          {% if days > 0 %}
+            {{ days }} Tage, {{ remaining_hours }} Stunden, {{ minutes }} Minuten
+          {% else %}
+            {{ remaining_hours }} Stunden, {{ minutes }} Minuten
+          {% endif %}
+        icon: mdi:clock-time-four
+        availability: "{{ states('sensor.trockenraum_laufzeit') != 'unknown' and states('sensor.betriebsstunden_trockenraum') != 'unavailable' }}"
+      # Optional: Betriebsmonate (30-Tage-Monate)
+      - name: "Betriebsmonate Wohnung"
+        state: >
+          {% set hours = states('sensor.wohnraum_laufzeit') | float %}
+          {% set days = (hours / 24) | float %}
+          {% set months = (days / 30) | round(1) %}
+          {{ months }}
+        unit_of_measurement: "Monate"
+        icon: mdi:calendar-month
+        availability: "{{ states('sensor.wohnraum_laufzeit') != 'unknown' and states('sensor.betriebsstunden_wohnung') != 'unavailable' }}"
+      - name: "Betriebsmonate Trockenraum"
+        state: >
+          {% set hours = states('sensor.trockenraum_laufzeit') | float %}
+          {% set days = (hours / 24) | float %}
+          {% set months = (days / 30) | round(1) %}
+          {{ months }}
+        unit_of_measurement: "Monate"
+        icon: mdi:calendar-month
+        availability: "{{ states('sensor.trockenraum_laufzeit') != 'unknown' and states('sensor.betriebsstunden_trockenraum') != 'unavailable' }}"
+  - binary_sensor:
+      - name: "Wartung Wohnung fällig"
+        state: >
+          {% set schwelle = states('input_number.warnschwelle_luefter_monate') | float %}
+          {% set aktuelle_monate = states('sensor.betriebsmonate_wohnung') | float %}
+          {% set gespeicherte_monate = states('input_number.gespeicherte_betriebsmonate_wohnung') | float %}
+          {% set differenz = aktuelle_monate - gespeicherte_monate %}
+          {% if differenz >= schwelle %}
+            {{ true }}
+          {% else %}
+            {{ false }}
+          {% endif %}
+        icon: mdi:hvac-off
+        device_class: problem
+      
+      - name: "Wartung Trockenraum fällig"
+        state: >
+          {% set schwelle = states('input_number.warnschwelle_luefter_monate') | float %}
+          {% set aktuelle_monate = states('sensor.betriebsmonate_trockenraum') | float %}
+          {% set gespeicherte_monate = states('input_number.gespeicherte_betriebsmonate_trockenraum') | float %}
+          {% set differenz = aktuelle_monate - gespeicherte_monate %}
+          {% if differenz >= schwelle %}
+            {{ true }}
+          {% else %}
+            {{ false }}
+          {% endif %}
+        icon: mdi:hvac-off
+        device_class: problem
