@@ -1,6 +1,6 @@
 esphome:
   name: heliospwm
-  friendly_name: helios_pwm_control
+  friendly_name: heliospwm
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -9,7 +9,7 @@ esp32:
 
 wifi:
   ssid: "SSID"
-  password: "WLAN Key"
+  password: "WLAN KEY"
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -29,6 +29,7 @@ logger:
   level: INFO  # Auf INFO geändert für den Produktivbetrieb, DEBUG nur für Fehlersuche
   
 api:
+  id: heliospwmapi
 
 # Konstanten für häufig verwendete Werte
 substitutions:
@@ -159,6 +160,36 @@ sensor:
     icon: "mdi:gauge"
     accuracy_decimals: 1
     update_interval: 2s
+    
+  # Hilfssensoren, die nur den Zustand (aktiv/inaktiv) nach Home Assistant senden
+  # statt den kompletten Betriebsstundenzähler
+  - platform: template
+    name: "Wohnung Aktiv"
+    id: wohnung_fan_active
+    unit_of_measurement: ""
+    icon: "mdi:fan"
+    lambda: |-
+      // Lüfter 1 oder 2 aktiv (nicht im Leerlauf bei 50%)
+      if (id(fan1_speed_sensor).state != 50.0f || id(fan2_speed_sensor).state != 50.0f) {
+        return 1.0f;
+      } else {
+        return 0.0f;
+      }
+    update_interval: 1s
+    
+  - platform: template
+    name: "Trockenraum Aktiv"
+    id: trockenraum_fan_active
+    unit_of_measurement: ""
+    icon: "mdi:fan"
+    lambda: |-
+      // Lüfter 3 oder 4 aktiv (nicht im Leerlauf bei 50%)
+      if (id(fan3_speed_sensor).state != 50.0f || id(fan4_speed_sensor).state != 50.0f) {
+        return 1.0f;
+      } else {
+        return 0.0f;
+      }
+    update_interval: 1s
 
 #  Textsensoren für Lüftermodus
 text_sensor:
@@ -358,49 +389,48 @@ interval:
           id(fan2_speed_sensor).publish_state(display_fan2_speed);
           id(fan3_speed_sensor).publish_state(display_fan3_speed);
           id(fan4_speed_sensor).publish_state(display_fan4_speed);
+          
+          // Aktualisieren der Hilfssensoren für die Betriebsstundenzählung in Home Assistant
+          id(wohnung_fan_active).update();
+          id(trockenraum_fan_active).update();
 
-          std::string fan1_mode, fan1_icon, fan2_mode, fan2_icon, fan3_mode, fan3_icon, fan4_mode, fan4_icon;
+          std::string fan1_mode, fan2_mode, fan3_mode, fan4_mode;
 
           // Modi-Bestimmung basierend auf den angezeigten Geschwindigkeiten
           if (display_fan1_speed < 50.0f) {
               fan1_mode = "Abluft";
-              fan1_icon = "mdi:fan-direction-up";
           } else if (display_fan1_speed > 50.0f) {
               fan1_mode = "Zuluft";
-              fan1_icon = "mdi:fan-direction-down";
           } else {
               fan1_mode = fan1_in_transition ? "Richtungswechsel" : "Aus";
-              fan1_icon = "mdi:fan";
           }
           if (display_fan2_speed < 50.0f) {
               fan2_mode = "Abluft";
-              fan2_icon = "mdi:fan-direction-up";
           } else if (display_fan2_speed > 50.0f) {
               fan2_mode = "Zuluft";
-              fan2_icon = "mdi:fan-direction-down";
           } else {
               fan2_mode = fan2_in_transition ? "Richtungswechsel" : "Aus";
-              fan2_icon = "mdi:fan";
+           
           }
           if (display_fan3_speed < 50.0f) {
               fan3_mode = "Abluft";
-              fan3_icon = "mdi:fan-direction-up";
+           
           } else if (display_fan3_speed > 50.0f) {
               fan3_mode = "Zuluft";
-              fan3_icon = "mdi:fan-direction-down";
+            
           } else {
               fan3_mode = fan3_in_transition ? "Richtungswechsel" : "Aus";
-              fan3_icon = "mdi:fan";
+            
           }
           if (display_fan4_speed < 50.0f) {
               fan4_mode = "Abluft";
-              fan4_icon = "mdi:fan-direction-up";
+             
           } else if (display_fan4_speed > 50.0f) {
               fan4_mode = "Zuluft";
-              fan4_icon = "mdi:fan-direction-down";
+             
           } else {
               fan4_mode = fan4_in_transition ? "Richtungswechsel" : "Aus";
-              fan4_icon = "mdi:fan";
+              
           }
           
           // Lüftermodi setzen
@@ -408,9 +438,3 @@ interval:
           id(fan2_mode_sensor).publish_state(fan2_mode);
           id(fan3_mode_sensor).publish_state(fan3_mode);
           id(fan4_mode_sensor).publish_state(fan4_mode);
-
-          // Dynamisches Icon für jeden Lüfter basierend auf dem Modus
-          id(fan1_mode_sensor).set_icon(fan1_icon.c_str());
-          id(fan2_mode_sensor).set_icon(fan2_icon.c_str());
-          id(fan3_mode_sensor).set_icon(fan3_icon.c_str());
-          id(fan4_mode_sensor).set_icon(fan4_icon.c_str());
