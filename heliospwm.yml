@@ -1,15 +1,15 @@
 esphome:
   name: heliospwm
-  friendly_name: heliospwm
+  friendly_name: helios_pwm_control
 
 esp32:
-  board: esp32-c3-devkitm-1
+  board: adafruit_feather_esp32s3
   framework:
     type: arduino
 
 wifi:
   ssid: "SSID"
-  password: "WLAN KEY"
+  password: "Password"
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -40,22 +40,22 @@ substitutions:
 # Output configurations for PWM signals
 output:
   - platform: ledc
-    pin: GPIO6 # Lüfter 1 - Wohnung
+    pin: GPIO5 # Lüfter 1 - Wohnung
     frequency: ${pwm_frequency} Hz
     id: fan_pwm_1
     
   - platform: ledc
-    pin: GPIO7 # Lüfter 2 - Wohnung
+    pin: GPIO6 # Lüfter 2 - Wohnung
     frequency: ${pwm_frequency} Hz
     id: fan_pwm_2
     
   - platform: ledc
-    pin: GPIO20 # Lüfter 3 - Trockenraum
+    pin: GPIO9 # Lüfter 3 - Trockenraum
     frequency: ${pwm_frequency} Hz
     id: fan_pwm_3
     
   - platform: ledc
-    pin: GPIO21 # Lüfter 4 - Trockenraum
+    pin: GPIO11 # Lüfter 4 - Trockenraum
     frequency: ${pwm_frequency} Hz
     id: fan_pwm_4
 
@@ -409,28 +409,21 @@ interval:
           } else if (display_fan2_speed > 50.0f) {
               fan2_mode = "Zuluft";
           } else {
-              fan2_mode = fan2_in_transition ? "Richtungswechsel" : "Aus";
-           
+              fan2_mode = fan2_in_transition ? "Richtungswechsel" : "Aus";           
           }
           if (display_fan3_speed < 50.0f) {
-              fan3_mode = "Abluft";
-           
+              fan3_mode = "Abluft";           
           } else if (display_fan3_speed > 50.0f) {
-              fan3_mode = "Zuluft";
-            
+              fan3_mode = "Zuluft";            
           } else {
-              fan3_mode = fan3_in_transition ? "Richtungswechsel" : "Aus";
-            
+              fan3_mode = fan3_in_transition ? "Richtungswechsel" : "Aus";            
           }
           if (display_fan4_speed < 50.0f) {
-              fan4_mode = "Abluft";
-             
+              fan4_mode = "Abluft";             
           } else if (display_fan4_speed > 50.0f) {
-              fan4_mode = "Zuluft";
-             
+              fan4_mode = "Zuluft";            
           } else {
               fan4_mode = fan4_in_transition ? "Richtungswechsel" : "Aus";
-              
           }
           
           // Lüftermodi setzen
