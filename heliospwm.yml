@@ -5,18 +5,26 @@ esphome:
 esp32:
   board: adafruit_feather_esp32s3
   framework:
-    type: arduino
+    type: esp-idf
 
-wifi:
-  ssid: "SSID"
-  password: "Password"
+#wifi:
+#  ssid: "SSID"
+#  password: "Password"
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "heliospwm"
-    password: "12345678"
-    
-captive_portal:
+# Enable fallback hotspot (captive portal) in case wifi connection fails
+#  ap:
+#    ssid: "heliospwm"
+#    password: "12345678"
+#captive_portal:
+
+ethernet:
+  type: W5500
+  clk_pin: GPIO36
+  mosi_pin: GPIO35
+  miso_pin: GPIO37
+  cs_pin: GPIO10
+  #interrupt_pin: GPIOXX
+  #reset_pin: GPIOXX    
 
 web_server:
   local: true
