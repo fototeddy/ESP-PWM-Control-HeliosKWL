@@ -313,6 +313,9 @@ interval:
           bool &reverse = id(reverse_state);
           uint32_t now = millis();
           uint32_t &last_swap = id(last_swap_time);
+          const float neutral = 50.0f;
+          const float min_speed = 4.0f;
+          const float max_speed = 96.0f;
 
           // Verbesserte Berechnung der Balancierungsfaktoren
           // Hier berechnen wir die Faktoren so, dass die Summe der Werte nicht über 100% steigen kann
@@ -382,14 +385,63 @@ interval:
             fan1_speed = std::max(4.0, std::min(96.0, 50 + 0.5 * effective_speed_wohnung));
             fan2_speed = std::max(4.0, std::min(96.0, 50 + 0.5 * effective_speed_wohnung));
           } else {
-            // Normaler Ab- und Zuluftmodus, ein Lüfter gibt Zuluft einer Abluft
-            fan1_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? -1 : 1) * effective_speed_wohnung * ratio_factor_1));
-            fan2_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? 1 : -1) * effective_speed_wohnung * ratio_factor_2));
+             // Normaler Ab- und Zuluftmodus mit Ratio-Erhaltung
+            
+            // Rohe Werte berechnen
+            float raw1 = ratio_factor_1 * effective_speed_wohnung * (reverse ? -1 : 1);
+            float raw2 = ratio_factor_2 * effective_speed_wohnung * (reverse ? 1 : -1);
+            
+            // Skalierungsfaktor bestimmen
+            float scale_factor = 1.0f;
+            
+            // Prüfen, ob Fan1 das Limit erreichen würde
+            if (std::abs(raw1) > 0) {
+              float limit_1 = (raw1 > 0) ? 
+                             (max_speed - neutral) / raw1 : 
+                             (neutral - min_speed) / std::abs(raw1);
+              scale_factor = std::min(scale_factor, limit_1);
+            }
+            
+            // Prüfen, ob Fan2 das Limit erreichen würde
+            if (std::abs(raw2) > 0) {
+              float limit_2 = (raw2 > 0) ? 
+                             (max_speed - neutral) / raw2 : 
+                             (neutral - min_speed) / std::abs(raw2);
+              scale_factor = std::min(scale_factor, limit_2);
+            }
+            
+            // Finale Werte berechnen
+            fan1_speed = neutral + raw1 * scale_factor;
+            fan2_speed = neutral + raw2 * scale_factor;
           }
           
           // Trockenraumlüfter, ein Lüfter gibt Zuluft einer Abluft
-          fan3_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? -1 : 1) * speed_trocken * ratio_factor_3));
-          fan4_speed = std::max(4.0, std::min(96.0, 50 + (reverse ? 1 : -1) * speed_trocken * ratio_factor_4));
+          // Rohe Werte berechnen mit Ratio-Faktoren
+          float raw3 = ratio_factor_3 * speed_trocken * (reverse ? -1 : 1);
+          float raw4 = ratio_factor_4 * speed_trocken * (reverse ? 1 : -1);
+            
+          // Skalierungsfaktor bestimmen
+          float scale_factor = 1.0f;
+            
+          // Prüfen, ob Fan3 das Limit erreichen würde
+          if (std::abs(raw3) > 0) {
+            float limit_3 = (raw3 > 0) ? 
+                           (max_speed - neutral) / raw3 : 
+                           (neutral - min_speed) / std::abs(raw3);
+            scale_factor = std::min(scale_factor, limit_3);
+          }
+            
+          // Prüfen, ob Fan4 das Limit erreichen würde
+          if (std::abs(raw4) > 0) {
+            float limit_4 = (raw4 > 0) ? 
+                           (max_speed - neutral) / raw4 : 
+                           (neutral - min_speed) / std::abs(raw4);
+            scale_factor = std::min(scale_factor, limit_4);
+          }
+            
+          // Finale Werte berechnen
+          fan3_speed = neutral + raw3 * scale_factor;
+          fan4_speed = neutral + raw4 * scale_factor;
           
           // Prüfen, ob individuelle Richtungswechsel für jeden Lüfter stattfinden
           // Für Lüfter 1
